@@ -9,6 +9,7 @@ namespace SimpleLogger.Logging.Handlers
         private readonly string _fileName;
         private readonly string _directory;
         private readonly ILoggerFormatter _loggerFormatter;
+        private static readonly object _sync = new object();
 
         public FileLoggerHandler() : this(CreateFileName()) { }
 
@@ -29,15 +30,18 @@ namespace SimpleLogger.Logging.Handlers
 
         public void Publish(LogMessage logMessage)
         {
-            if (!string.IsNullOrEmpty(_directory))
+            lock (_sync)
             {
-                var directoryInfo = new DirectoryInfo(Path.Combine(_directory));
-                if (!directoryInfo.Exists)
-                    directoryInfo.Create();
-            }
+                if (!string.IsNullOrEmpty(_directory))
+                {
+                    var directoryInfo = new DirectoryInfo(Path.Combine(_directory));
+                    if (!directoryInfo.Exists)
+                        directoryInfo.Create();
+                }
 
-            using (var writer = new StreamWriter(File.Open(Path.Combine(_directory, _fileName), FileMode.Append)))
-                writer.WriteLine(_loggerFormatter.ApplyFormat(logMessage));
+                using (var writer = new StreamWriter(File.Open(Path.Combine(_directory, _fileName), FileMode.Append)))
+                    writer.WriteLine(_loggerFormatter.ApplyFormat(logMessage));
+            }
         }
 
         private static string CreateFileName()
